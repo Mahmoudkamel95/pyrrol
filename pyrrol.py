@@ -3,34 +3,77 @@ import pandas as pd
 
 st.title("📊 مفردات المرتب")
 
-url = "https://docs.google.com/spreadsheets/d/1ku7qkt_cnfM722rS7r4mzPipVIYxFRS6cVlI0HBTxnY/export?format=csv&gid=0"
-df = pd.read_csv(url)
+# 🟢 الاستحقاقات
+url_est7qaq = "https://docs.google.com/spreadsheets/d/1ku7qkt_cnfM722rS7r4mzPipVIYxFRS6cVlI0HBTxnY/export?format=csv&gid=0"
+
+# 🔴 الاستقطاعات
+url_est2ta3 = "https://docs.google.com/spreadsheets/d/1ku7qkt_cnfM722rS7r4mzPipVIYxFRS6cVlI0HBTxnY/export?format=csv&gid=535952387"
+
+df_est7qaq = pd.read_csv(url_est7qaq)
+df_est2ta3 = pd.read_csv(url_est2ta3)
 
 emp_id = st.text_input("ادخل ID الموظف")
-
-# 🔥 زرار البحث
 search = st.button("🔍 بحث")
 
 if search:
     if emp_id:
-        emp_data = df[df["id hr"].astype(str) == emp_id]
 
-        if emp_data.empty:
+        # 🔍 فلترة الموظف
+        emp7 = df_est7qaq[df_est7qaq["id hr"].astype(str) == emp_id]
+        emp2 = df_est2ta3[df_est2ta3["id hr"].astype(str) == emp_id]
+
+        if emp7.empty and emp2.empty:
             st.error("❌ الموظف غير موجود")
         else:
             st.success("✅ تم العثور على الموظف")
 
-            # حذف الأعمدة الأساسية
-            basic_cols = ["id hr", "الرقــــم القـــــــومى", "محافظة العمل", "الدرجه"]
-            data = emp_data.drop(columns=basic_cols, errors='ignore')
+            # 👤 الاسم والدرجة (من الاستحقاقات)
+            name = emp7["الإسم"].iloc[0] if "الإسم" in emp7.columns else "-"
+            grade = emp7["الدرجه"].iloc[0] if "الدرجه" in emp7.columns else "-"
 
-            # تحويل البيانات
-            data = data.T
-            data.columns = ["القيمة"]
+            st.markdown(f"### 👤 الإسم: {name}")
+            st.markdown(f"### 🎓 الدرجة: {grade}")
 
-            # حذف القيم الفاضية أو صفر
-            data = data[(data["القيمة"] != 0) & (data["القيمة"].notna())]
+            # 🔥 الأعمدة غير الحسابية
+            basic_cols = [
+                "id hr",
+                "الرقــــم القـــــــومى",
+                "محافظة العمل"
+                
+            ]
 
-            st.dataframe(data)
+            # 🟢 الاستحقاقات
+            data7 = emp7.drop(columns=basic_cols, errors='ignore').T
+            data7.columns = ["القيمة"]
+
+            # 🔴 الاستقطاعات
+            data2 = emp2.drop(columns=basic_cols, errors='ignore').T
+            data2.columns = ["القيمة"]
+
+            # 🔥 تنظيف الداتا (أهم جزء)
+            def clean(df):
+                df["القيمة"] = pd.to_numeric(
+                    df["القيمة"].astype(str).str.replace(",", ""),
+                    errors="coerce"
+                )
+                df = df[df["القيمة"].notna()]
+                df = df[df["القيمة"] != 0]
+                df = df[~df.index.str.contains("اجمالي|إجمالي", case=False)]
+                return df
+
+            data7 = clean(data7)
+            data2 = clean(data2)
+
+            # 📊 عرض جنب بعض
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.subheader("🟢 الاستحقاقات")
+                st.dataframe(data7)
+
+            with col2:
+                st.subheader("🔴 الاستقطاعات")
+                st.dataframe(data2)
+
     else:
         st.warning("⚠️ من فضلك ادخل ID الموظف")
